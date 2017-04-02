@@ -1,4 +1,4 @@
-program ProSavant100;
+program ProBITOYGII;
 
 uses
   Forms,

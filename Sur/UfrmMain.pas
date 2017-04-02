@@ -164,8 +164,8 @@ var
   ctext        :string;
   reg          :tregistry;
 begin
-  ComDataPacket1.StartString:=STX;
-  ComDataPacket1.StopString:=ETX;
+  ComDataPacket1.StartString:=#$1B#$3D#$01#$1C#$26#$1B#$74#$29;
+  ComDataPacket1.StopString:=#$2A#$B1#$BE#$BD#$E1#$B9#$FB#$BD#$F6#$B6#$D4#$B4#$CB#$B1#$EA#$B1#$BE#$B8#$BA#$D4#$F0#$0D#$0A#$0D#$0A#$0D#$0A#$0D#$0A#$0D#$0A#$0D#$0A#$0D#$0A#$1B#$3D;//#$00
 
   ConnectString:=GetConnectString;
   UpdateConfig;
@@ -267,6 +267,8 @@ begin
           ComPort1.BaudRate:=br19200
         else if BaudRate='57600' then
           ComPort1.BaudRate:=br57600
+        else if BaudRate='115200' then
+          ComPort1.BaudRate:=br115200
           else ComPort1.BaudRate:=br9600;
   if DataBit='5' then
     ComPort1.DataBits:=dbFive
@@ -322,8 +324,8 @@ end;
 
 function TfrmMain.GetSpecNo(const Value:string):string; //取得联机号
 begin
-    result:=copy(Value,3,11);
-    result:='0000'+result;
+    result:=copy(Value,9,5);
+    result:='0000'+trim(result);
     result:=rightstr(result,4);
 end;
 
@@ -398,7 +400,7 @@ begin
   if LoadInputPassDll then
   begin
     ss:='串口选择'+#2+'Combobox'+#2+'COM1'+#13+'COM2'+#13+'COM3'+#13+'COM4'+#2+'0'+#2+#2+#3+
-      '波特率'+#2+'Combobox'+#2+'57600'+#13+'19200'+#13+'9600'+#13+'4800'+#13+'2400'+#13+'1200'+#2+'0'+#2+#2+#3+
+      '波特率'+#2+'Combobox'+#2+'115200'+#13+'57600'+#13+'19200'+#13+'9600'+#13+'4800'+#13+'2400'+#13+'1200'+#2+'0'+#2+#2+#3+
       '数据位'+#2+'Combobox'+#2+'8'+#13+'7'+#13+'6'+#13+'5'+#2+'0'+#2+#2+#3+
       '停止位'+#2+'Combobox'+#2+'1'+#13+'1.5'+#13+'2'+#2+'0'+#2+#2+#3+
       '校验位'+#2+'Combobox'+#2+'None'+#13+'Even'+#13+'Odd'+#13+'Mark'+#13+'Space'+#2+'0'+#2+#2+#3+
@@ -460,6 +462,8 @@ end;
 procedure TfrmMain.ComDataPacket1Packet(Sender: TObject;
   const Str: String);
 VAR
+  ls:TStrings;
+  i:integer;
   SpecNo:string;
   dlttype:string;
   sValue:string;
@@ -469,14 +473,23 @@ begin
   if length(memo1.Lines.Text)>=60000 then memo1.Lines.Clear;//memo只能接受64K个字符
   memo1.Lines.Add(Str);
 
-  SpecNo:=GetSpecNo(Str);
+  ls:=TStringList.Create;
+  ExtractStrings([#$D,#$A],[],Pchar(Str),ls);//将每行导入到字符串列表中
 
-  ReceiveItemInfo:=VarArrayCreate([0,0],varVariant);
+  if ls.Count<2 then begin ls.Free;exit;end;
+  
+  SpecNo:=GetSpecNo(ls[1]);
 
-  dlttype:=trim(copy(Str,15,16));
-  sValue:=trim(copy(Str,32,6));
-    
-  ReceiveItemInfo[0]:=VarArrayof([dlttype,sValue,'','']);
+  ReceiveItemInfo:=VarArrayCreate([0,ls.Count-1],varVariant);
+
+  for i :=0 to ls.Count-1 do
+  begin
+    dlttype:=trim(copy(ls[i],1,11));
+    sValue:=trim(copy(ls[i],12,11));
+
+    ReceiveItemInfo[i]:=VarArrayof([dlttype,sValue,'','']);
+  end;
+  ls.Free;
 
   if bRegister then
   begin
